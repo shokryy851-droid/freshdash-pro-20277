@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+@import '@fontsource/ibm-plex-sans-arabic/400.css';
+@import '@fontsource/ibm-plex-sans-arabic/600.css';
+@import '@fontsource/ibm-plex-sans-arabic/700.css';
+
+/* Class-based dark mode (toggle sets data-theme on <html>) */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* Design tokens — 4/8px spacing comes from Tailwind's default scale */
+@theme {
+  --font-sans: 'IBM Plex Sans Arabic', system-ui, 'Segoe UI', Tahoma, sans-serif;
+  --color-brand-50: #eef7ee;
+  --color-brand-100: #d6ecd6;
+  --color-brand-500: #2e7d32;
+  --color-brand-600: #1b5e20;
+  --color-brand-700: #144a19;
+  --color-accent-400: #f4c24d;
+  --color-accent-500: #e9ad1f;
+  --color-surface: #ffffff;
+  --color-canvas: #f4f7f2;
+  --color-ink: #13261a;
+  --color-muted: #5b6b60;
+  --color-danger: #c62828;
+  --radius-card: 1.25rem;
+}
+
+[data-theme='dark'] {
+  --color-surface: #16201a;
+  --color-canvas: #0d1410;
+  --color-ink: #e8f2ea;
+  --color-muted: #9db2a3;
+  --color-brand-50: #1a2e1d;
+  --color-brand-100: #24402a;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-accent-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

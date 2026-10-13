@@ -47,6 +47,17 @@ export type NotificationRow = {
   read_at: string | null; created_at: string;
 };
 
+export type DeliveryStatus = 'unassigned' | 'assigned' | 'picked_up' | 'delivered' | 'failed';
+export type DeliveryRow = {
+  id: string; order_id: string; driver_id: string | null; status: DeliveryStatus;
+  assigned_at: string | null; delivered_at: string | null; failure_note: string | null; updated_at: string;
+};
+export type PaymentRow = {
+  id: string; customer_id: string; order_id: string | null; amount: number; method: PaymentMethod;
+  reference: string | null; idempotency_key: string; received_by: string | null; created_at: string;
+};
+export type CustomerBalanceRow = { customer_id: string; total_billed: number; total_paid: number; outstanding: number };
+
 export type Database = {
   public: {
     Tables: {
@@ -58,8 +69,10 @@ export type Database = {
       orders: Table<OrderRow>;
       order_items: Table<OrderItemRow>;
       notifications: Table<NotificationRow>;
+      deliveries: Table<DeliveryRow>;
+      payments: Table<PaymentRow>;
     };
-    Views: { [_ in never]: never };
+    Views: { customer_balances: { Row: CustomerBalanceRow; Relationships: [] } };
     Functions: {
       create_order: {
         Args: {
@@ -77,6 +90,19 @@ export type Database = {
         Args: { p_order_id: string; p_to: OrderStatus; p_note?: string | null };
         Returns: OrderRow;
       };
+      assign_delivery: { Args: { p_order_id: string; p_driver_id: string }; Returns: DeliveryRow };
+      record_payment: {
+        Args: {
+          p_customer_id: string; p_amount: number; p_method: PaymentMethod; p_idempotency_key: string;
+          p_order_id?: string | null; p_reference?: string | null;
+        };
+        Returns: PaymentRow;
+      };
+      adjust_stock: {
+        Args: { p_product_id: string; p_quantity: number; p_type: 'adjustment' | 'damage'; p_reason: string };
+        Returns: undefined;
+      };
+      dashboard_summary: { Args: Record<string, never>; Returns: unknown };
     };
     Enums: { app_role: AppRole; order_status: OrderStatus; payment_method: PaymentMethod };
     CompositeTypes: { [_ in never]: never };

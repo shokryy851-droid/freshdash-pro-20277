@@ -6,16 +6,21 @@ import { formatMoney, formatQty } from '@/lib/format';
 import { newIdempotencyKey } from '@/lib/idempotency';
 import { userMessage } from '@/lib/errors';
 import { Button } from '@/ui/Button';
+import { Field, Select } from '@/ui/Field';
 import { EmptyState, ErrorState, LoadingState } from '@/ui/States';
+import { hasRole, ORDER_ON_BEHALF_ROLES } from '@/app/roles';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { cartEstimate, useCart } from '@/features/cart/store';
+import { fetchCustomers } from '@/features/admin/api';
 import type { PaymentMethod } from '@/types/database';
 import { fetchMyCustomer, submitOrder, type MyCustomer } from './api';
 
 const METHODS: PaymentMethod[] = ['cash', 'credit', 'ewallet'];
 
 export function CheckoutPage() {
-  const { session } = useAuth();
+  const { session, role } = useAuth();
+  const onBehalf = hasRole(role, ORDER_ON_BEHALF_ROLES);
+  const [pickedId, setPickedId] = useState('');
   const lines = useCart((s) => s.lines);
   const setQuantity = useCart((s) => s.setQuantity);
   const clear = useCart((s) => s.clear);
@@ -30,15 +35,21 @@ export function CheckoutPage() {
 
   const customer = useQuery({
     queryKey: ['my-customer', session?.user.id],
-    enabled: Boolean(session),
+    enabled: Boolean(session) && !onBehalf,
     queryFn: () => fetchMyCustomer(session!.user.id)
   });
+  // Staff taking phone/WhatsApp orders pick the customer explicitly
+  const customers = useQuery({ queryKey: ['customers', ''], enabled: onBehalf, queryFn: () => fetchCustomers('') });
 
   if (lines.length === 0) return <EmptyState title={t.emptyCart} />;
-  if (customer.isPending) return <LoadingState />;
-  if (customer.isError) return <ErrorState error={customer.error} onRetry={() => void customer.refetch()} />;
-  const me: MyCustomer | null = customer.data;
-  if (!me) {
+  const source = onBehalf ? customers : customer;
+  if (source.isPending) return <LoadingState />;
+  if (source.isError) return <ErrorState error={source.error} onRetry={() => void source.refetch()} />;
+  const picked = customers.data?.find((c) => c.id === pickedId);
+  const me: MyCustomer | null = onBehalf
+    ? picked ? { id: picked.id, name: picked.name, address: picked.address } : null
+    : (customer.data ?? null);
+  if (!me && !onBehalf) {
     return <EmptyState title="حسابك غير مربوط بعميل بعد" hint="تواصل مع الإدارة لتفعيل حساب منشأتك." />;
   }
 
@@ -71,6 +82,16 @@ export function CheckoutPage() {
   return (
     <section className="flex flex-col gap-4 p-4">
       <h1 className="text-xl font-bold">السلة</h1>
+      {onBehalf ? (
+        <Field label="الطلب لصالح العميل">
+          <Select value={pickedId} onChange={(e) => setPickedId(e.target.value)}>
+            <option value="">— اختر العميل —</option>
+            {(customers.data ?? []).map((c) => (
+              <option key={c.id} value={c.id}>{c.name} — {c.phone}</option>
+            ))}
+          </Select>
+        </Field>
+      ) : null}
       <ul className="flex flex-col gap-2">
         {lines.map((l) => (
           <li key={l.productId} className="flex items-center gap-3 rounded-2xl bg-surface p-4">
@@ -109,7 +130,7 @@ export function CheckoutPage() {
       </div>
 
       {message ? <p role="alert" className="text-danger">{message}</p> : null}
-      <Button onClick={() => void onSubmit(me)} loading={busy}>{t.checkout}</Button>
+      <Button onClick={() => me && void onSubmit(me)} disabled={!me} loading={busy}>{t.checkout}</Button>
     </section>
   );
 }
